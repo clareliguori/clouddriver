@@ -204,7 +204,8 @@ public class CreateServerGroupAtomicOperation extends AbstractEcsAtomicOperation
 
       AwsVpcConfiguration awsvpcConfiguration = new AwsVpcConfiguration()
         .withSecurityGroups(securityGroupIds)
-        .withSubnets(subnetIds);
+        .withSubnets(subnetIds)
+        .withAssignPublicIp(description.getAssociatePublicIpAddress() ? "ENABLED" : "DISABLED");
       request.withNetworkConfiguration(new NetworkConfiguration().withAwsvpcConfiguration(awsvpcConfiguration));
     }
 
