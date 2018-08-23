@@ -34,6 +34,7 @@ import com.netflix.spinnaker.clouddriver.ecs.model.EcsTask
 import com.netflix.spinnaker.clouddriver.ecs.provider.agent.ServiceCachingAgent
 import com.netflix.spinnaker.clouddriver.ecs.provider.agent.TaskCachingAgent
 import com.netflix.spinnaker.clouddriver.ecs.services.ContainerInformationService
+import com.netflix.spinnaker.clouddriver.ecs.services.SubnetSelector
 import com.netflix.spinnaker.clouddriver.model.ServerGroup
 import com.netflix.spinnaker.clouddriver.security.AccountCredentialsProvider
 import spock.lang.Specification
@@ -52,10 +53,12 @@ class EcsServerClusterProviderSpec extends Specification {
   def ecsCloudWatchAlarmCacheClient = Mock(EcsCloudWatchAlarmCacheClient)
   def accountCredentialsProvider = Mock(AccountCredentialsProvider)
   def containerInformationService = Mock(ContainerInformationService)
+  def subnetSelector =  Mock(SubnetSelector)
 
   @Subject
   def provider = new EcsServerClusterProvider(accountCredentialsProvider,
     containerInformationService,
+    subnetSelector,
     taskCacheClient,
     serviceCacheClient,
     scalableTargetCacheClient,
