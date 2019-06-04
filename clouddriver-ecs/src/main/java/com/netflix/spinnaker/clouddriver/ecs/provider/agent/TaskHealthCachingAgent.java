@@ -120,6 +120,14 @@ public class TaskHealthCachingAgent extends AbstractEcsCachingAgent<TaskHealth>
         ContainerInstance containerInstance =
             containerInstanceCacheClient.get(containerInstanceCacheKey);
 
+        if (containerInstance == null) {
+          log.error("DEBUG ISSUE #4466: container instance is null");
+          log.error("DEBUG ISSUE #4466: cached task: " + task.toString());
+          log.error(
+              "DEBUG ISSUE #4466: container instance is not in the cache: "
+                  + containerInstanceCacheKey);
+        }
+
         String serviceName = StringUtils.substringAfter(task.getGroup(), "service:");
         String serviceKey = Keys.getServiceKey(accountName, region, serviceName);
         Service service = serviceCacheClient.get(serviceKey);
