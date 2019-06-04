@@ -249,6 +249,7 @@ public class TaskHealthCachingAgent extends AbstractEcsCachingAgent<TaskHealth>
 
     for (LoadBalancer loadBalancer : loadBalancers) {
       if (loadBalancer.getTargetGroupArn() == null
+          || containerInstance == null
           || containerInstance.getEc2InstanceId() == null) {
         continue;
       }
