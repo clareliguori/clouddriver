@@ -22,13 +22,8 @@ import com.netflix.spinnaker.clouddriver.ecs.cache.client.EcsLoadbalancerCacheCl
 import com.netflix.spinnaker.clouddriver.ecs.cache.model.EcsLoadBalancerCache;
 import com.netflix.spinnaker.clouddriver.ecs.model.loadbalancer.EcsLoadBalancerDetail;
 import com.netflix.spinnaker.clouddriver.ecs.model.loadbalancer.EcsLoadBalancerSummary;
-import com.netflix.spinnaker.clouddriver.ecs.security.ECSCredentialsConfig;
 import com.netflix.spinnaker.clouddriver.model.LoadBalancerProvider;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -36,14 +31,10 @@ import org.springframework.stereotype.Component;
 public class EcsLoadBalancerProvider implements LoadBalancerProvider<AmazonLoadBalancer> {
 
   private final EcsLoadbalancerCacheClient ecsLoadbalancerCacheClient;
-  private final ECSCredentialsConfig ecsCredentialsConfig;
 
   @Autowired
-  public EcsLoadBalancerProvider(
-      EcsLoadbalancerCacheClient ecsLoadbalancerCacheClient,
-      ECSCredentialsConfig ecsCredentialsConfig) {
+  public EcsLoadBalancerProvider(EcsLoadbalancerCacheClient ecsLoadbalancerCacheClient) {
     this.ecsLoadbalancerCacheClient = ecsLoadbalancerCacheClient;
-    this.ecsCredentialsConfig = ecsCredentialsConfig;
   }
 
   @Override
@@ -57,8 +48,7 @@ public class EcsLoadBalancerProvider implements LoadBalancerProvider<AmazonLoadB
     List<EcsLoadBalancerCache> loadBalancers = ecsLoadbalancerCacheClient.findAll();
 
     for (EcsLoadBalancerCache lb : loadBalancers) {
-      String account = getEcsAccountName(lb.getAccount());
-      if (account == null) {
+      if (lb.getAccount() == null) {
         continue;
       }
 
@@ -72,7 +62,7 @@ public class EcsLoadBalancerProvider implements LoadBalancerProvider<AmazonLoadB
       }
 
       EcsLoadBalancerDetail loadBalancer = new EcsLoadBalancerDetail();
-      loadBalancer.setAccount(account);
+      loadBalancer.setAccount(lb.getAccount());
       loadBalancer.setRegion(region);
       loadBalancer.setName(name);
       loadBalancer.setVpcId(lb.getVpcId());
@@ -81,7 +71,7 @@ public class EcsLoadBalancerProvider implements LoadBalancerProvider<AmazonLoadB
       loadBalancer.setTargetGroups(lb.getTargetGroups());
 
       summary
-          .getOrCreateAccount(account)
+          .getOrCreateAccount(lb.getAccount())
           .getOrCreateRegion(region)
           .getLoadBalancers()
           .add(loadBalancer);
@@ -92,27 +82,19 @@ public class EcsLoadBalancerProvider implements LoadBalancerProvider<AmazonLoadB
 
   @Override
   public Item get(String name) {
-    return null; // TODO - Implement this.
+    // unused method
+    throw new UnsupportedOperationException("Not implemented.");
   }
 
   @Override
   public List<Details> byAccountAndRegionAndName(String account, String region, String name) {
-    return null; // TODO - Implement this.  This is used to show the details view of a load balancer
-    // which is not even implemented yet
+    // unused method
+    throw new UnsupportedOperationException("Not implemented.");
   }
 
   @Override
   public Set<AmazonLoadBalancer> getApplicationLoadBalancers(String application) {
     return null; // TODO - Implement this.  This is used to show load balancers and reveals other
     // buttons
-  }
-
-  private String getEcsAccountName(String awsAccountName) {
-    for (ECSCredentialsConfig.Account ecsAccount : ecsCredentialsConfig.getAccounts()) {
-      if (ecsAccount.getAwsAccount().equals(awsAccountName)) {
-        return ecsAccount.getName();
-      }
-    }
-    return null;
   }
 }

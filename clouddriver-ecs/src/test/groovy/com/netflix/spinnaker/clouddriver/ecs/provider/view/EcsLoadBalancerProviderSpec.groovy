@@ -25,9 +25,8 @@ import spock.lang.Subject
 
 class EcsLoadBalancerProviderSpec extends Specification {
   def client = Mock(EcsLoadbalancerCacheClient)
-  def ecsCredentialsConfig = Mock(ECSCredentialsConfig)
   @Subject
-  def provider = new EcsLoadBalancerProvider(client, ecsCredentialsConfig)
+  def provider = new EcsLoadBalancerProvider(client)
 
   def 'should retrieve an empty list'() {
     when:
@@ -42,7 +41,6 @@ class EcsLoadBalancerProviderSpec extends Specification {
     given:
     def expectedNumberOfLoadbalancers = 2
     def givenList = []
-    def accounts = []
     (1..expectedNumberOfLoadbalancers).forEach() {
       givenList << new EcsLoadBalancerCache(
         account: 'test-account-' + it,
@@ -64,13 +62,7 @@ class EcsLoadBalancerProviderSpec extends Specification {
         targetGroups: ['target-group-' + it],
         serverGroups: []
       )
-
-      accounts << new ECSCredentialsConfig.Account(
-        name: 'test-account-' + it,
-        awsAccount: 'test-account-' + it
-      )
     }
-    ecsCredentialsConfig.getAccounts() >> accounts
 
     when:
     def retrievedList = provider.list()
