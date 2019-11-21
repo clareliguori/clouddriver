@@ -16,25 +16,47 @@
 
 package com.netflix.spinnaker.clouddriver.ecs.provider.view;
 
-import com.netflix.spinnaker.clouddriver.aws.model.AmazonLoadBalancer;
+import static com.netflix.spinnaker.clouddriver.core.provider.agent.Namespace.TARGET_GROUPS;
+
+import com.amazonaws.services.ecs.model.LoadBalancer;
+import com.netflix.spinnaker.clouddriver.aws.AmazonCloudProvider;
+import com.netflix.spinnaker.clouddriver.aws.data.ArnUtils;
 import com.netflix.spinnaker.clouddriver.ecs.EcsCloudProvider;
 import com.netflix.spinnaker.clouddriver.ecs.cache.client.EcsLoadbalancerCacheClient;
+import com.netflix.spinnaker.clouddriver.ecs.cache.client.EcsTargetGroupCacheClient;
+import com.netflix.spinnaker.clouddriver.ecs.cache.client.ServiceCacheClient;
 import com.netflix.spinnaker.clouddriver.ecs.cache.model.EcsLoadBalancerCache;
+import com.netflix.spinnaker.clouddriver.ecs.cache.model.Service;
 import com.netflix.spinnaker.clouddriver.ecs.model.loadbalancer.EcsLoadBalancerDetail;
 import com.netflix.spinnaker.clouddriver.ecs.model.loadbalancer.EcsLoadBalancerSummary;
 import com.netflix.spinnaker.clouddriver.model.LoadBalancerProvider;
 import java.util.*;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-public class EcsLoadBalancerProvider implements LoadBalancerProvider<AmazonLoadBalancer> {
+public class EcsLoadBalancerProvider implements LoadBalancerProvider<EcsLoadBalancerCache> {
 
   private final EcsLoadbalancerCacheClient ecsLoadbalancerCacheClient;
+  private final EcsAccountMapper ecsAccountMapper;
+  private final ServiceCacheClient ecsServiceCacheClient;
+  private final EcsTargetGroupCacheClient ecsTargetGroupCacheClient;
+
+  private final Logger log = LoggerFactory.getLogger(getClass());
 
   @Autowired
-  public EcsLoadBalancerProvider(EcsLoadbalancerCacheClient ecsLoadbalancerCacheClient) {
+  public EcsLoadBalancerProvider(
+      EcsLoadbalancerCacheClient ecsLoadbalancerCacheClient,
+      EcsAccountMapper ecsAccountMapper,
+      ServiceCacheClient ecsServiceCacheClient,
+      EcsTargetGroupCacheClient ecsTargetGroupCacheClient) {
     this.ecsLoadbalancerCacheClient = ecsLoadbalancerCacheClient;
+    this.ecsAccountMapper = ecsAccountMapper;
+    this.ecsServiceCacheClient = ecsServiceCacheClient;
+    this.ecsTargetGroupCacheClient = ecsTargetGroupCacheClient;
   }
 
   @Override
@@ -93,8 +115,45 @@ public class EcsLoadBalancerProvider implements LoadBalancerProvider<AmazonLoadB
   }
 
   @Override
-  public Set<AmazonLoadBalancer> getApplicationLoadBalancers(String application) {
-    return null; // TODO - Implement this.  This is used to show load balancers and reveals other
-    // buttons
+  public Set<EcsLoadBalancerCache> getApplicationLoadBalancers(String application) {
+    // Find the load balancers currently in use by ECS services in this application
+    Set<Service> services =
+        ecsServiceCacheClient.getAll().stream()
+            .filter(service -> service.getApplicationName().equals(application))
+            .collect(Collectors.toSet());
+
+    Collection<String> allTargetGroupKeys = ecsTargetGroupCacheClient.getAllKeys();
+    Set<String> targetGroupKeys = new HashSet<>();
+
+    // find all the target group cache keys
+    for (Service service : services) {
+      String awsAccountName =
+          ecsAccountMapper.fromEcsAccountNameToAwsAccountName(service.getAccount());
+      for (LoadBalancer loadBalancer : service.getLoadBalancers()) {
+        if (loadBalancer.getTargetGroupArn() != null) {
+          String keyPrefix =
+              String.format(
+                  "%s:%s:%s:%s:%s:",
+                  AmazonCloudProvider.ID,
+                  TARGET_GROUPS.getNs(),
+                  awsAccountName,
+                  service.getRegion(),
+                  ArnUtils.extractTargetGroupName(loadBalancer.getTargetGroupArn()).get());
+          Set<String> matchingKeys =
+              allTargetGroupKeys.stream()
+                  .filter(key -> key.startsWith(keyPrefix))
+                  .collect(Collectors.toSet());
+          targetGroupKeys.addAll(matchingKeys);
+        }
+      }
+    }
+
+    // find the load balancers for all the target groups
+    List<EcsLoadBalancerCache> tgLBs =
+        ecsLoadbalancerCacheClient.findWithTargetGroups(targetGroupKeys);
+
+    // TODO CLARE associate server groups and target health with load balancer results
+
+    return new HashSet<>(tgLBs);
   }
 }
